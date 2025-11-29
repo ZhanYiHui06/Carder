@@ -202,7 +202,6 @@
                     await document.fonts.ready;
                     
                     // 获取卡片实际尺寸
-                    const cardRect = cardRef.current.getBoundingClientRect();
                     const cardWidth = cardRef.current.offsetWidth;
                     const cardHeight = cardRef.current.offsetHeight;
                     
@@ -216,10 +215,15 @@
                         allowTaint: true,
                         backgroundColor: null,
                         logging: false,
-                        // 移除旋转效果以获得正的图片
                         onclone: (clonedDoc, element) => {
+                            // 移除旋转和阴影
                             element.style.transform = 'none';
                             element.style.boxShadow = 'none';
+                            // 隐藏操作按钮（下载和删除按钮）
+                            const actionButtons = element.querySelector('[data-export-hide]');
+                            if (actionButtons) {
+                                actionButtons.style.display = 'none';
+                            }
                         }
                     });
                     
@@ -277,7 +281,7 @@
                             </div>
                             <div className="flex gap-2 items-center">
                                 <span>{layout.showFooter ? layout.footerText : ''}</span>
-                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ml-1">
+                                <div data-export-hide className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ml-1">
                                     <button onClick={(e) => { e.stopPropagation(); onDelete(id); }} className="p-1 hover:bg-red-500/20 rounded text-current"><Icons.Trash/></button>
                                     <button onClick={handleDownload} className="p-1 hover:bg-black/20 rounded text-current">
                                         {isExporting ? <span className="animate-spin"><Icons.RefreshIcon/></span> : <Icons.Download/>}
