@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carder</title>
+    
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Html2Canvas for Export -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Google Fonts (Base) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=DotGothic16&display=swap" rel="stylesheet">
+
+    <!-- Custom Chinese Fonts (ZeoSeven API) -->
+    <style>
+        @import url("https://fontsapi.zeoseven.com/256/main/result.css"); /* 汇文明朝体 */
+        @import url("https://fontsapi.zeoseven.com/309/main/result.css"); /* 京華老宋体 */
+        @import url("https://fontsapi.zeoseven.com/492/main/result.css"); /* 平方长安体 */
+    </style>
+    <!-- Other Chinese Fonts -->
+    <link rel='stylesheet' href='https://chinese-fonts-cdn.deno.dev/packages/sypxzs/dist/%E6%80%9D%E6%BA%90%E5%B1%8F%E6%98%BE%E8%87%BB%E5%AE%8B/result.css' /> 
+    <link rel='stylesheet' href='https://chinese-fonts-cdn.deno.dev/packages/lxgwwenkaibright/dist/LXGWBright-Regular/result.css' /> 
+    <link rel='stylesheet' href='https://chinese-fonts-cdn.deno.dev/packages/dyh/dist/SmileySans-Oblique/result.css' />
+
+    <style>
+        body {
+            background-color: #1a1a1a;
+            overflow: hidden;
+            font-family: 'Courier Prime', 'Huiwen-mincho', monospace;
+            cursor: crosshair;
+        }
+
+        .font-pixel {
+            font-family: 'DotGothic16', sans-serif;
+            letter-spacing: 1px;
+            line-height: 1.5;
+        }
+
+        textarea::-webkit-scrollbar { width: 6px; }
+        textarea::-webkit-scrollbar-track { background: #1f2937; }
+        textarea::-webkit-scrollbar-thumb { background: #4fd1c5; border-radius: 3px; }
+
+        .retro-grid {
+            background-size: 40px 40px;
+            background-image:
+                linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        .typing-cursor::after {
+            content: '▋';
+            animation: blink 0.8s step-end infinite;
+            font-weight: bold;
+            margin-left: 2px;
+            font-size: 0.8em;
+            vertical-align: middle;
+        }
+
+        .card-hover {
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        .card-hover:hover {
+            transform: translateY(-8px) scale(1.02) rotate(0deg) !important;
+            box-shadow: 0 25px 30px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+            z-index: 9999 !important; /* Always on top when hovered */
+        }
+
+        /* Paper Textures - Removed Opacity here, controlled via React style */
+        .texture-grain { background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPgo8cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSJ0cmFuc3BhcmVudCIvPgo8cmVjdCB3aWR0aD0iMSIgaGVpZ2h0PSIxIiBmaWxsPSIjMDAwIiBvcGFjaXR5PSIwLjAzIi8+PC9zdmc+'); }
+        .texture-lines { background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPgo8cGF0aCBkPSJNMCA0TDQgMCIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjAuNSIgb3BhY2l0eT0iMC4wNSIvPjwvc3ZnPg=='); }
+        .texture-dots { background-image: radial-gradient(#000 0.5px, transparent 0.5px); background-size: 10px 10px; }
+        .texture-grid { background-image: linear-gradient(#000 0.5px, transparent 0.5px), linear-gradient(90deg, #000 0.5px, transparent 0.5px); background-size: 20px 20px; }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- Constants ---
+        // Updated Font Stack with Correct User-Provided Family Names
+        const FONTS = [
+            { 
+                name: '汇文明朝体', 
+                value: "'Huiwen-mincho', serif", 
+                desc: "典雅/明朝" 
+            },
+            { 
+                name: '思源屏显臻宋', 
+                value: "'Source Han Serif CN for Display', '思源屏显臻宋', serif", 
+                desc: "高屏/臻宋" 
+            },
+            { 
+                name: '京華老宋体', 
+                value: "'KingHwaOldSong', serif", 
+                desc: "复古/斑驳" 
+            },
+            { 
+                name: '霞鹜文楷', 
+                value: "'LXGW WenKai Bright', 'LXGWBright-Regular', sans-serif", 
+                desc: "清新/文楷" 
+            },
+            { 
+                name: '得意黑', 
+                value: "'SmileySans-Oblique', 'Smiley Sans', sans-serif", 
+                desc: "潮流/斜体" 
+            },
+            { 
+                name: '平方长安体', 
+                value: "'PING FANG CHANG AN', sans-serif", 
+                desc: "手写/清新" 
+            },
+            { 
+                name: '英文打字机', 
+                value: "'Courier Prime', monospace", 
+                desc: "经典/机械" 
+            },
+        ];
+
+        // Opacity is now handled via JS for consistent export
+        const THEMES = [
+            { id: 'classic', name: '经典米白', bg: '#fffdf5', text: '#1f2937', texture: 'texture-grain', opacity: 1 },
+            { id: 'blueprint', name: '工程蓝图', bg: '#1e3a8a', text: '#e0f2fe', texture: 'texture-grid', opacity: 0.05 },
+            { id: 'pink', name: '樱花粉', bg: '#fdf2f8', text: '#831843', texture: 'texture-dots', opacity: 0.05 },
+            { id: 'dark', name: '暗夜黑', bg: '#18181b', text: '#d4d4d8', texture: 'texture-grain', opacity: 0.2 },
+            { id: 'kraft', name: '牛皮纸', bg: '#FFE8C9', text: '#3f2e18', texture: 'texture-lines', opacity: 0.1 },
+            { id: 'terminal', name: '黑客绿', bg: '#000000', text: '#22c55e', texture: 'texture-grid', opacity: 0.15 },
+        ];
+
+        const Icons = {
+            Download: () => <span style={{display: 'inline-flex'}}><i data-lucide="download" width="18" height="18"></i></span>,
+            Trash: () => <span style={{display: 'inline-flex'}}><i data-lucide="trash-2" width="18" height="18"></i></span>,
+            Settings: () => <span style={{display: 'inline-flex'}}><i data-lucide="settings-2" width="18" height="18"></i></span>,
+            Print: () => <span style={{display: 'inline-flex'}}><i data-lucide="printer" width="20" height="20"></i></span>,
+            X: () => <span style={{display: 'inline-flex'}}><i data-lucide="x" width="16" height="16"></i></span>,
+            AlignLeft: () => <span style={{display: 'inline-flex'}}><i data-lucide="align-left" width="16" height="16"></i></span>,
+            AlignCenter: () => <span style={{display: 'inline-flex'}}><i data-lucide="align-center" width="16" height="16"></i></span>,
+            AlignRight: () => <span style={{display: 'inline-flex'}}><i data-lucide="align-right" width="16" height="16"></i></span>,
+            RefreshIcon: () => <span style={{display: 'inline-flex'}}><i data-lucide="rotate-cw" width="16" height="16"></i></span>
+        };
+
+        const TypewriterCard = ({ id, fullText = '', x, y, settings, onDragStart, onDelete, zIndex }) => {
+            const [displayedText, setDisplayedText] = useState('');
+            const [isTyping, setIsTyping] = useState(true);
+            const [isExporting, setIsExporting] = useState(false);
+            const cardRef = useRef(null);
+            
+            const { font, theme, layout } = settings;
+            const themeObj = THEMES.find(t => t.id === theme) || THEMES[0];
+
+            useEffect(() => {
+                if (!fullText) return;
+                let currentIndex = 0;
+                setIsTyping(true);
+                setDisplayedText(''); 
+                const intervalId = setInterval(() => {
+                    if (currentIndex < fullText.length) {
+                        currentIndex++;
+                        setDisplayedText(fullText.slice(0, currentIndex));
+                    } else {
+                        setIsTyping(false);
+                        clearInterval(intervalId);
+                    }
+                }, 40);
+                return () => clearInterval(intervalId);
+            }, [fullText]);
+
+            useEffect(() => {
+                if (window.lucide) window.lucide.createIcons();
+            }, [isTyping, isExporting, displayedText]);
+
+            const handleDownload = async (e) => {
+                e.stopPropagation();
+                if (!cardRef.current || isExporting) return;
+                setIsExporting(true);
+                
+                try {
+                    // 等待字体加载完成
+                    await document.fonts.ready;
+                    
+                    // 获取卡片实际尺寸
+                    const cardRect = cardRef.current.getBoundingClientRect();
+                    const cardWidth = cardRef.current.offsetWidth;
+                    const cardHeight = cardRef.current.offsetHeight;
+                    
+                    // 计算缩放比例，使导出图片为高清分辨率（基于1080p）
+                    const scale = Math.max(3, 1080 / Math.max(cardWidth, cardHeight));
+                    
+                    // 直接对当前卡片进行截图，所见即所得
+                    const canvas = await html2canvas(cardRef.current, {
+                        scale: scale,
+                        useCORS: true,
+                        allowTaint: true,
+                        backgroundColor: null,
+                        logging: false,
+                        // 移除旋转效果以获得正的图片
+                        onclone: (clonedDoc, element) => {
+                            element.style.transform = 'none';
+                            element.style.boxShadow = 'none';
+                        }
+                    });
+                    
+                    // 下载图片
+                    const link = document.createElement('a');
+                    link.download = `moto-card-${id}.png`;
+                    link.href = canvas.toDataURL('image/png', 1.0);
+                    link.click();
+                } catch (err) {
+                    console.error("Export error:", err);
+                    alert("导出失败，请重试");
+                } finally {
+                    setIsExporting(false);
+                }
+            };
+
+            const fontObj = FONTS.find(f => f.name === font) || FONTS[0];
+            const rotation = useRef(Math.random() * 4 - 2).current;
+
+            return (
+                <div 
+                    ref={cardRef}
+                    className="absolute p-6 rounded-sm shadow-xl w-80 min-h-[220px] flex flex-col justify-between select-none card-hover group"
+                    style={{ 
+                        left: x, top: y, zIndex,
+                        backgroundColor: themeObj.bg,
+                        color: themeObj.text,
+                        fontFamily: fontObj.value,
+                        fontWeight: 400,
+                        transform: `rotate(${rotation}deg)`,
+                        cursor: 'grab'
+                    }}
+                    onMouseDown={(e) => onDragStart(e, id)}
+                >
+                    {/* Separate Texture Layer for Screen */}
+                    <div className={`absolute inset-0 pointer-events-none ${themeObj.texture}`} 
+                         style={{opacity: themeObj.opacity || 0.1}}></div>
+
+                    {/* Content */}
+                    <div className="relative z-10 flex flex-col flex-1">
+                        {layout.showHeader && (
+                            <div className="mb-4 pb-2 border-b-2 border-dashed border-current opacity-60 text-center tracking-widest text-xs">
+                                {layout.headerText}
+                            </div>
+                        )}
+
+                        <div className={`text-sm md:text-[15px] leading-relaxed break-words whitespace-pre-wrap flex-1 text-${layout.align}`}>
+                            {displayedText}
+                            {isTyping && <span className="typing-cursor text-current opacity-70"></span>}
+                        </div>
+
+                        <div className="mt-6 pt-2 border-t-2 border-dashed border-current opacity-80 flex justify-between items-end text-[10px]">
+                            <div>
+                                {layout.showTime && <span className="font-bold opacity-70 tracking-widest">{new Date().toLocaleDateString()}</span>}
+                            </div>
+                            <div className="flex gap-2 items-center">
+                                <span>{layout.showFooter ? layout.footerText : ''}</span>
+                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ml-1">
+                                    <button onClick={(e) => { e.stopPropagation(); onDelete(id); }} className="p-1 hover:bg-red-500/20 rounded text-current"><Icons.Trash/></button>
+                                    <button onClick={handleDownload} className="p-1 hover:bg-black/20 rounded text-current">
+                                        {isExporting ? <span className="animate-spin"><Icons.RefreshIcon/></span> : <Icons.Download/>}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const SettingsPanel = ({ settings, setSettings, isOpen, onClose }) => {
+            if (!isOpen) return null;
+            const handleThemeSelect = (themeId) => setSettings(s => ({ ...s, theme: themeId }));
+            const handleFontSelect = (fontName) => setSettings(s => ({ ...s, font: fontName }));
+            const toggleLayout = (key) => setSettings(s => ({ ...s, layout: { ...s.layout, [key]: !s.layout[key] } }));
+            const updateLayoutText = (key, val) => setSettings(s => ({ ...s, layout: { ...s.layout, [key]: val } }));
+            const setAlign = (align) => setSettings(s => ({ ...s, layout: { ...s.layout, align } }));
+
+            return (
+                <div className="absolute bottom-[280px] left-1/2 transform -translate-x-1/2 w-[90%] max-w-xl bg-gray-900 border-2 border-gray-700 text-gray-300 rounded-lg shadow-2xl z-50 p-4 text-xs font-mono animate-fade-in-up">
+                    <div className="flex justify-between items-center mb-3 border-b border-gray-700 pb-2">
+                        <span className="font-bold text-yellow-500 tracking-widest">:: SYSTEM CONFIG ::</span>
+                        <button onClick={onClose} className="hover:text-white"><Icons.X /></button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-gray-500 mb-1">PAPER TYPE</label>
+                            <div className="grid grid-cols-6 gap-2">
+                                {THEMES.map(t => (
+                                    <button 
+                                        key={t.id}
+                                        onClick={() => handleThemeSelect(t.id)}
+                                        className={`w-6 h-6 rounded-full border-2 ${settings.theme === t.id ? 'border-yellow-500 scale-110' : 'border-transparent'}`}
+                                        style={{ backgroundColor: t.bg }}
+                                        title={t.name}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-gray-500 mb-1">FONT MODULE</label>
+                            <select 
+                                value={settings.font} 
+                                onChange={(e) => handleFontSelect(e.target.value)}
+                                className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-gray-200 outline-none focus:border-yellow-500"
+                            >
+                                {FONTS.map(f => (
+                                    <option key={f.name} value={f.name}>{f.name} {f.desc ? `[${f.desc}]` : ''}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="md:col-span-2 space-y-2">
+                            <label className="block text-gray-500">LAYOUT CONTROL</label>
+                            <div className="flex flex-wrap gap-4 bg-gray-800 p-2 rounded border border-gray-700">
+                                <div className="flex bg-gray-900 rounded p-1">
+                                    {['left', 'center', 'right'].map(align => (
+                                        <button 
+                                            key={align}
+                                            onClick={() => setAlign(align)}
+                                            className={`p-1 rounded ${settings.layout.align === align ? 'bg-gray-700 text-yellow-400' : 'text-gray-500'}`}
+                                        >
+                                            {align === 'left' ? <Icons.AlignLeft/> : align === 'center' ? <Icons.AlignCenter/> : <Icons.AlignRight/>}
+                                        </button>
+                                    ))}
+                                </div>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" checked={settings.layout.showTime} onChange={() => toggleLayout('showTime')} className="accent-yellow-500" />
+                                    时间戳
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" checked={settings.layout.showHeader} onChange={() => toggleLayout('showHeader')} className="accent-yellow-500" />
+                                    页眉
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" checked={settings.layout.showFooter} onChange={() => toggleLayout('showFooter')} className="accent-yellow-500" />
+                                    页脚
+                                </label>
+                            </div>
+                        </div>
+                        {(settings.layout.showHeader || settings.layout.showFooter) && (
+                            <div className="md:col-span-2 grid grid-cols-2 gap-2 animate-fade-in">
+                                {settings.layout.showHeader && (
+                                    <input 
+                                        type="text" 
+                                        value={settings.layout.headerText}
+                                        onChange={(e) => updateLayoutText('headerText', e.target.value)}
+                                        placeholder="Header Text"
+                                        className="bg-gray-800 border-b border-gray-600 px-2 py-1 outline-none focus:border-yellow-500"
+                                    />
+                                )}
+                                {settings.layout.showFooter && (
+                                    <input 
+                                        type="text" 
+                                        value={settings.layout.footerText}
+                                        onChange={(e) => updateLayoutText('footerText', e.target.value)}
+                                        placeholder="Footer Text"
+                                        className="bg-gray-800 border-b border-gray-600 px-2 py-1 outline-none focus:border-yellow-500"
+                                    />
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [inputText, setInputText] = useState("");
+            const [cards, setCards] = useState([]);
+            const [dragState, setDragState] = useState({ isDragging: false, cardId: null, offsetX: 0, offsetY: 0 });
+            const [highestZ, setHighestZ] = useState(10);
+            const [showSettings, setShowSettings] = useState(false);
+            const [currentSettings, setCurrentSettings] = useState({
+                font: '汇文明朝体', 
+                theme: 'classic',
+                layout: { align: 'left', showHeader: true, headerText: 'MOTO-FIX', showFooter: false, footerText: 'BY MOTOROLA', showTime: true }
+            });
+
+            useEffect(() => {
+                if (window.lucide) window.lucide.createIcons();
+            }, [showSettings]);
+
+            const handleMouseDown = (e, id) => {
+                const card = cards.find(c => c.id === id);
+                if (!card) return;
+                setHighestZ(prev => prev + 1);
+                setCards(prev => prev.map(c => c.id === id ? { ...c, zIndex: highestZ + 1 } : c));
+                setDragState({ isDragging: true, cardId: id, offsetX: e.clientX - card.x, offsetY: e.clientY - card.y });
+            };
+
+            const handleMouseMove = (e) => {
+                if (!dragState.isDragging) return;
+                setCards(prev => prev.map(c => c.id === dragState.cardId ? { ...c, x: e.clientX - dragState.offsetX, y: e.clientY - dragState.offsetY } : c));
+            };
+
+            const handleMouseUp = () => setDragState({ ...dragState, isDragging: false, cardId: null });
+
+            const handlePrint = () => {
+                if (!inputText.trim()) return;
+                const newCard = {
+                    id: Date.now(),
+                    fullText: inputText,
+                    x: window.innerWidth / 2 - 160 + (Math.random() * 40 - 20), 
+                    y: window.innerHeight / 2 - 250 + (Math.random() * 40 - 20),
+                    zIndex: highestZ + 1,
+                    settings: JSON.parse(JSON.stringify(currentSettings))
+                };
+                setHighestZ(prev => prev + 1);
+                setCards(prev => [...prev, newCard]);
+                setInputText("");
+            };
+
+            return (
+                <div className="w-full h-screen relative overflow-hidden retro-grid select-none" onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} style={{ backgroundColor: '#111827' }}>
+                    <div className="absolute top-6 left-6 z-0 pointer-events-none">
+                        <h1 className="text-4xl font-black text-gray-800 tracking-tighter opacity-30 select-none">MOTOROLA <br/> FIX BEEPER</h1>
+                        <p className="text-gray-700 mt-2 font-mono text-xs opacity-30">PRO EDITION // V2.0</p>
+                    </div>
+                    {cards.map(card => <TypewriterCard key={card.id} {...card} onDragStart={handleMouseDown} onDelete={(id) => setCards(prev => prev.filter(c => c.id !== id))} />)}
+                    <SettingsPanel isOpen={showSettings} onClose={() => setShowSettings(false)} settings={currentSettings} setSettings={setCurrentSettings} />
+                    <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-40 w-[95%] max-w-xl transition-all duration-300">
+                        <div className="flex justify-end pr-4 mb-[-2px] relative z-0">
+                             <button onClick={() => setShowSettings(!showSettings)} className={`bg-gray-800 text-gray-400 px-4 py-1 rounded-t border-t border-l border-r border-gray-700 text-xs font-bold tracking-wider flex items-center gap-2 ${showSettings ? 'text-yellow-500 pb-2' : 'hover:text-white'}`}>
+                                <Icons.Settings /> CONFIG
+                             </button>
+                        </div>
+                        <div className="bg-gray-800 rounded-t-xl rounded-b-lg p-1 pb-0 shadow-2xl border-t border-l border-r border-gray-700 ring-4 ring-black/50 relative z-10">
+                            <div className="bg-[#0f1f1a] p-4 rounded-b-sm border-4 border-gray-700 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] relative overflow-hidden">
+                                <div className="absolute inset-0 pointer-events-none opacity-10 bg-[url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAADCAYAAABS3WWCAAAAE0lEQVQIW2NkQAKrVq36zwjjAwAw9QOQQ2Wu4QAAAABJRU5ErkJggg==')]"></div>
+                                <textarea value={inputText} onChange={(e) => setInputText(e.target.value)} placeholder="输入文字..." className="w-full bg-transparent text-[#4fd1c5] font-pixel text-xl outline-none resize-none h-32 placeholder-[#1d403a] cursor-text drop-shadow-[0_0_8px_rgba(79,209,197,0.6)] leading-relaxed" spellCheck="false" maxLength={200} />
+                                <div className="absolute bottom-2 right-2 text-[#2c554d] font-pixel text-xs">{inputText.length} / 200</div>
+                            </div>
+                        </div>
+                        <div className="bg-gray-900 rounded-b-xl p-3 shadow-2xl border-b border-l border-r border-black flex items-center gap-3">
+                             <div className="hidden sm:flex gap-1">
+                                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_5px_red]"></div>
+                                <div className="w-2 h-2 rounded-full bg-green-500 opacity-50"></div>
+                             </div>
+                             <div className="flex-1 h-8 bg-black/30 rounded border border-white/5 flex items-center px-3 text-xs text-gray-500 font-mono">FONT: {currentSettings.font.split(' ')[0]}</div>
+                             <button onClick={handlePrint} disabled={!inputText} className={`px-6 py-2 rounded font-mono font-bold tracking-widest text-lg transition-all transform active:scale-95 active:translate-y-1 flex items-center justify-center gap-2 shadow-lg ${inputText ? 'bg-amber-600 hover:bg-amber-500 text-black border-b-4 border-amber-800' : 'bg-gray-700 text-gray-500 border-b-4 border-gray-800 cursor-not-allowed'}`}>
+                                PRINT <Icons.Print />
+                             </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
