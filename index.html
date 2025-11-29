@@ -208,7 +208,7 @@
                     // 计算缩放比例，使导出图片为高清分辨率（基于1080p）
                     const scale = Math.max(3, 1080 / Math.max(cardWidth, cardHeight));
                     
-                    // 直接对当前卡片进行截图，所见即所得
+                    // 直接对当前卡片进行截图，真正的所见即所得
                     const canvas = await html2canvas(cardRef.current, {
                         scale: scale,
                         useCORS: true,
@@ -216,13 +216,19 @@
                         backgroundColor: null,
                         logging: false,
                         onclone: (clonedDoc, element) => {
-                            // 移除旋转和阴影
+                            // 只移除旋转和阴影
                             element.style.transform = 'none';
                             element.style.boxShadow = 'none';
-                            // 隐藏操作按钮（下载和删除按钮）
+                            // 隐藏操作按钮
                             const actionButtons = element.querySelector('[data-export-hide]');
                             if (actionButtons) {
                                 actionButtons.style.display = 'none';
+                            }
+                            // 补偿 html2canvas 渲染差异
+                            const header = element.querySelector('[data-header]');
+                            if (header) {
+                                header.style.paddingBottom = '20px';
+                                header.style.marginTop = '-12px';
                             }
                         }
                     });
@@ -265,7 +271,7 @@
                     {/* Content */}
                     <div className="relative z-10 flex flex-col flex-1">
                         {layout.showHeader && (
-                            <div className="mb-4 pb-2 border-b-2 border-dashed border-current opacity-60 text-center tracking-widest text-xs">
+                            <div data-header className="mb-4 pb-2 border-b-2 border-dashed border-current opacity-60 text-center tracking-widest text-xs">
                                 {layout.headerText}
                             </div>
                         )}
@@ -439,8 +445,8 @@
             return (
                 <div className="w-full h-screen relative overflow-hidden retro-grid select-none" onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} style={{ backgroundColor: '#111827' }}>
                     <div className="absolute top-6 left-6 z-0 pointer-events-none">
-                        <h1 className="text-4xl font-black text-gray-800 tracking-tighter opacity-30 select-none">MOTOROLA <br/> FIX BEEPER</h1>
-                        <p className="text-gray-700 mt-2 font-mono text-xs opacity-30">PRO EDITION // V2.0</p>
+                        <h1 className="text-4xl font-black text-gray-800 tracking-tighter opacity-100 select-none">MOTOROLA <br/> Carder</h1>
+                        <p className="text-gray-700 mt-2 font-mono text-xs opacity-50">PRO EDITION // V2.0</p>
                     </div>
                     {cards.map(card => <TypewriterCard key={card.id} {...card} onDragStart={handleMouseDown} onDelete={(id) => setCards(prev => prev.filter(c => c.id !== id))} />)}
                     <SettingsPanel isOpen={showSettings} onClose={() => setShowSettings(false)} settings={currentSettings} setSettings={setCurrentSettings} />
