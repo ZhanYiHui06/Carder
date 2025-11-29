@@ -249,7 +249,7 @@
             const fontObj = FONTS.find(f => f.name === font) || FONTS[0];
             const rotation = useRef(Math.random() * 4 - 2).current;
 
-                return (
+            return (
                 <div 
                     ref={cardRef}
                     className="absolute p-6 rounded-sm shadow-xl w-80 min-h-[220px] flex flex-col justify-between select-none card-hover group"
@@ -260,12 +260,9 @@
                         fontFamily: fontObj.value,
                         fontWeight: 400,
                         transform: `rotate(${rotation}deg)`,
-                        cursor: 'grab',
-                        touchAction: 'none'
+                        cursor: 'grab'
                     }}
                     onMouseDown={(e) => onDragStart(e, id)}
-                    onTouchStart={(e) => onDragStart(e, id)}
-                    onPointerDown={(e) => onDragStart(e, id)}
                 >
                     {/* Separate Texture Layer for Screen */}
                     <div className={`absolute inset-0 pointer-events-none ${themeObj.texture}`} 
@@ -415,31 +412,20 @@
                 if (window.lucide) window.lucide.createIcons();
             }, [showSettings]);
 
-            // Helper to normalize mouse/touch events
-            const getClient = (e) => {
-                if (!e) return { clientX: 0, clientY: 0 };
-                if (e.touches && e.touches[0]) return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
-                if (e.changedTouches && e.changedTouches[0]) return { clientX: e.changedTouches[0].clientX, clientY: e.changedTouches[0].clientY };
-                return { clientX: e.clientX || 0, clientY: e.clientY || 0 };
-            };
-
-            const handlePointerStart = (e, id) => {
+            const handleMouseDown = (e, id) => {
                 const card = cards.find(c => c.id === id);
                 if (!card) return;
                 setHighestZ(prev => prev + 1);
                 setCards(prev => prev.map(c => c.id === id ? { ...c, zIndex: highestZ + 1 } : c));
-                const { clientX, clientY } = getClient(e);
-                if (e && e.preventDefault) try { e.preventDefault(); } catch (er) {}
-                setDragState({ isDragging: true, cardId: id, offsetX: clientX - card.x, offsetY: clientY - card.y });
+                setDragState({ isDragging: true, cardId: id, offsetX: e.clientX - card.x, offsetY: e.clientY - card.y });
             };
 
-            const handlePointerMove = (e) => {
+            const handleMouseMove = (e) => {
                 if (!dragState.isDragging) return;
-                const { clientX, clientY } = getClient(e);
-                setCards(prev => prev.map(c => c.id === dragState.cardId ? { ...c, x: clientX - dragState.offsetX, y: clientY - dragState.offsetY } : c));
+                setCards(prev => prev.map(c => c.id === dragState.cardId ? { ...c, x: e.clientX - dragState.offsetX, y: e.clientY - dragState.offsetY } : c));
             };
 
-            const handlePointerEnd = () => setDragState({ ...dragState, isDragging: false, cardId: null });
+            const handleMouseUp = () => setDragState({ ...dragState, isDragging: false, cardId: null });
 
             const handlePrint = () => {
                 if (!inputText.trim()) return;
@@ -456,13 +442,13 @@
                 setInputText("");
             };
 
-                return (
-                <div className="w-full h-screen relative overflow-hidden retro-grid select-none" onMouseMove={handlePointerMove} onMouseUp={handlePointerEnd} onTouchMove={handlePointerMove} onTouchEnd={handlePointerEnd} style={{ backgroundColor: '#111827' }}>
+            return (
+                <div className="w-full h-screen relative overflow-hidden retro-grid select-none" onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} style={{ backgroundColor: '#111827' }}>
                     <div className="absolute top-6 left-6 z-0 pointer-events-none">
                         <h1 className="text-4xl font-black text-gray-800 tracking-tighter opacity-100 select-none">MOTOROLA <br/> Carder</h1>
                         <p className="text-gray-700 mt-2 font-mono text-xs opacity-50">PRO EDITION // V2.0</p>
                     </div>
-                    {cards.map(card => <TypewriterCard key={card.id} {...card} onDragStart={handlePointerStart} onDelete={(id) => setCards(prev => prev.filter(c => c.id !== id))} />)}
+                    {cards.map(card => <TypewriterCard key={card.id} {...card} onDragStart={handleMouseDown} onDelete={(id) => setCards(prev => prev.filter(c => c.id !== id))} />)}
                     <SettingsPanel isOpen={showSettings} onClose={() => setShowSettings(false)} settings={currentSettings} setSettings={setCurrentSettings} />
                     <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-40 w-[95%] max-w-xl transition-all duration-300">
                         <div className="flex justify-end pr-4 mb-[-2px] relative z-0">
